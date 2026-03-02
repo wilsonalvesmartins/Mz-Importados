@@ -1,7 +1,54 @@
-FROM node:20-alpine
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install
-COPY . .
-EXPOSE 3333
-CMD ["npm", "start"]
+version: '3.8'
+
+services:
+  # 1. FRONTEND: Interface do usuário servida via Nginx
+  frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: mz-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - mz-network
+    depends_on:
+      - backend
+
+  # 2. BACKEND: A nossa API Node.js que manipula as regras e os dados
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mz-backend
+    restart: unless-stopped
+    environment:
+      - DB_HOST=postgres-db
+      - DB_USER=mzadmin
+      - DB_PASS=mzsenha2026
+      - DB_NAME=mz_importados
+    networks:
+      - mz-network
+    depends_on:
+      - postgres-db
+
+  # 3. DATABASE: O Banco de Dados PostgreSQL oficial
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: mz-database
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mzadmin
+      POSTGRES_PASSWORD: mzsenha2026
+      POSTGRES_DB: mz_importados
+    volumes:
+      - mz-pg-data:/var/lib/postgresql/data
+    networks:
+      - mz-network
+
+volumes:
+  mz-pg-data: 
+
+networks:
+  mz-network:
+    driver: bridge
