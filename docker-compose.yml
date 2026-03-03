@@ -7,9 +7,6 @@ services:
       dockerfile: Dockerfile
     container_name: mz-frontend
     restart: unless-stopped
-    # Removida a configuração 'ports: - "3000:80"' para evitar conflitos na VPS
-    networks:
-      - mz-network
     depends_on:
       - backend
 
@@ -24,8 +21,6 @@ services:
       - DB_USER=mzadmin
       - DB_PASS=mzsenha2026
       - DB_NAME=mz_importados
-    networks:
-      - mz-network
     depends_on:
       - postgres-db
 
@@ -39,12 +34,6 @@ services:
       POSTGRES_DB: mz_importados
     volumes:
       - mz-pg-data:/var/lib/postgresql/data
-    networks:
-      - mz-network
 
 volumes:
   mz-pg-data: 
-
-networks:
-  mz-network:
-    driver: bridge
