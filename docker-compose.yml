@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: mz-frontend
     restart: unless-stopped
+    expose:
+      - "80"
     depends_on:
       - backend
 
@@ -16,6 +18,8 @@ services:
       dockerfile: Dockerfile
     container_name: mz-backend
     restart: unless-stopped
+    expose:
+      - "3333"
     environment:
       - DB_HOST=postgres-db
       - DB_USER=mzadmin
@@ -28,6 +32,8 @@ services:
     image: postgres:15-alpine
     container_name: mz-database
     restart: unless-stopped
+    expose:
+      - "5432"
     environment:
       POSTGRES_USER: mzadmin
       POSTGRES_PASSWORD: mzsenha2026
