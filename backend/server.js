@@ -1,3 +1,6 @@
+**2. `server.js`** (Atualizado com as rotas de deletar e editar vendas, restaurando o estoque)
+
+```javascript
 import express from 'express';
 import pkg from 'pg';
 import cors from 'cors';
@@ -129,23 +132,57 @@ app.post('/sales', async (req, res) => {
   const { orderNumber, date, customer, items, total, paymentMethod, installments, warranty } = req.body;
   
   try {
-    await pool.query('BEGIN'); // Inicia a transação
+    await pool.query('BEGIN');
     
-    // Salva a venda
     await pool.query(
       'INSERT INTO sales (order_number, date, customer_json, items_json, total, payment_method, installments, warranty) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [orderNumber, date, JSON.stringify(customer), JSON.stringify(items), total, paymentMethod, installments, warranty]
     );
 
-    // Desconta o estoque
     for (const item of items) {
       await pool.query('UPDATE products SET quantity = quantity - $1 WHERE id = $2', [item.quantity, item.product.id]);
     }
 
-    await pool.query('COMMIT'); // Conclui com sucesso
+    await pool.query('COMMIT');
     res.json({ success: true });
   } catch (error) {
-    await pool.query('ROLLBACK'); // Desfaz se houver erro
+    await pool.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/sales/:id', async (req, res) => {
+  const { paymentMethod, installments, warranty } = req.body;
+  try {
+    await pool.query(
+      'UPDATE sales SET payment_method=$1, installments=$2, warranty=$3 WHERE id=$4',
+      [paymentMethod, installments, warranty, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/sales/:id', async (req, res) => {
+  try {
+    await pool.query('BEGIN');
+    // Busca os itens da venda para devolver ao estoque
+    const { rows } = await pool.query('SELECT items_json FROM sales WHERE id = $1', [req.params.id]);
+    
+    if (rows.length > 0) {
+      const items = rows[0].items_json;
+      for (const item of items) {
+        await pool.query('UPDATE products SET quantity = quantity + $1 WHERE id = $2', [item.quantity, item.product.id]);
+      }
+      // Após devolver, apaga a venda
+      await pool.query('DELETE FROM sales WHERE id = $1', [req.params.id]);
+    }
+    
+    await pool.query('COMMIT');
+    res.json({ success: true });
+  } catch (error) {
+    await pool.query('ROLLBACK');
     res.status(500).json({ error: error.message });
   }
 });
