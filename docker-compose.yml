@@ -1,21 +1,18 @@
 version: '3.8'
 
 services:
-  # 1. FRONTEND: Interface do usuário servida via Nginx
   frontend:
     build: 
       context: .
       dockerfile: Dockerfile
     container_name: mz-frontend
     restart: unless-stopped
-    ports:
-      - "3000:80"
+    # Removida a configuração 'ports: - "3000:80"' para evitar conflitos na VPS
     networks:
       - mz-network
     depends_on:
       - backend
 
-  # 2. BACKEND: A nossa API Node.js que manipula as regras e os dados
   backend:
     build:
       context: ./backend
@@ -32,7 +29,6 @@ services:
     depends_on:
       - postgres-db
 
-  # 3. DATABASE: O Banco de Dados PostgreSQL oficial
   postgres-db:
     image: postgres:15-alpine
     container_name: mz-database
