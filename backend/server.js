@@ -1,6 +1,3 @@
-**2. `server.js`** (Atualizado com as rotas de deletar e editar vendas, restaurando o estoque)
-
-```javascript
 import express from 'express';
 import pkg from 'pg';
 import cors from 'cors';
@@ -132,21 +129,23 @@ app.post('/sales', async (req, res) => {
   const { orderNumber, date, customer, items, total, paymentMethod, installments, warranty } = req.body;
   
   try {
-    await pool.query('BEGIN');
+    await pool.query('BEGIN'); // Inicia a transação
     
+    // 1. Registra a venda
     await pool.query(
       'INSERT INTO sales (order_number, date, customer_json, items_json, total, payment_method, installments, warranty) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [orderNumber, date, JSON.stringify(customer), JSON.stringify(items), total, paymentMethod, installments, warranty]
     );
 
+    // 2. Desconta os itens do estoque
     for (const item of items) {
       await pool.query('UPDATE products SET quantity = quantity - $1 WHERE id = $2', [item.quantity, item.product.id]);
     }
 
-    await pool.query('COMMIT');
+    await pool.query('COMMIT'); // Conclui com sucesso
     res.json({ success: true });
   } catch (error) {
-    await pool.query('ROLLBACK');
+    await pool.query('ROLLBACK'); // Desfaz se houver erro
     res.status(500).json({ error: error.message });
   }
 });
@@ -166,23 +165,25 @@ app.put('/sales/:id', async (req, res) => {
 
 app.delete('/sales/:id', async (req, res) => {
   try {
-    await pool.query('BEGIN');
-    // Busca os itens da venda para devolver ao estoque
+    await pool.query('BEGIN'); // Inicia a transação
+    
+    // 1. Busca os itens da venda para devolver ao estoque
     const { rows } = await pool.query('SELECT items_json FROM sales WHERE id = $1', [req.params.id]);
     
     if (rows.length > 0) {
       const items = rows[0].items_json;
+      // 2. Devolve os produtos ao estoque
       for (const item of items) {
         await pool.query('UPDATE products SET quantity = quantity + $1 WHERE id = $2', [item.quantity, item.product.id]);
       }
-      // Após devolver, apaga a venda
+      // 3. Após devolver ao estoque, apaga a venda do histórico
       await pool.query('DELETE FROM sales WHERE id = $1', [req.params.id]);
     }
     
-    await pool.query('COMMIT');
+    await pool.query('COMMIT'); // Conclui a transação
     res.json({ success: true });
   } catch (error) {
-    await pool.query('ROLLBACK');
+    await pool.query('ROLLBACK'); // Desfaz se houver erro
     res.status(500).json({ error: error.message });
   }
 });
